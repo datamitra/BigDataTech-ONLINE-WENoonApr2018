@@ -64,10 +64,112 @@ select * from users_stg limit 5;
 insert overwrite directory '/hive/practice/users' select regexp_replace(line,"::",'@') from users_stg;
 
 
+select * from hivepractice.users;
+select * from hivepractice.users limit 10;
+
+
 ---------------------------------------------------------
+Q1 Top 10  most viewed movies with names::
+---------------------
+part-1: ratings data
+select count(mvid) from ratings group by mvid order by count(mvid) desc;
+select mvid,count(mvid) cnt from ratings group by mvid order by cnt desc limit 10;
+f,w,g,h,select,limit,order
+
+select 
+r.mvid movie_id,
+count(r.mvid) cnt,
+m.name as movie_name 
+from ratings r 
+left join movies m on r.mvid=m.id 
+group by r.mvid,m.name order by cnt desc limit 10;
+
+select A.mvid,A.cnt,m.name
+from (select mvid,count(mvid) cnt 
+from ratings group by mvid order by cnt desc limit 10) A
+join movies m on m.id=A.mvid ;
+
+create table q1_res as select A.mvid,A.cnt,m.name
+from (select mvid,count(mvid) cnt 
+from ratings group by mvid order by cnt desc limit 10) A
+join movies m on m.id=A.mvid ;
+
+or else
+create table q1_res(mvid int,mvcount int,mvname string)
+stored as parquet;
+
+insert overwrite table q1_res 
+select A.mvid,A.cnt,m.name
+from (select mvid,count(mvid) cnt 
+from ratings group by mvid order by cnt desc limit 10) A
+join movies m on m.id=A.mvid ;
+
+
+---------------------------
+
+
+Q2 -> top 20 rated movies , movie should be rated by 40
+
+take average rating by movieid, condition count(users) >=40
+
+select 
+sum(r.rating) ,
+count(r.rating),
+avg(rating) avgrating,
+r.mvid,
+m.name
+from ratings r left join movies m on r.mvid = m.id 
+group by r.mvid ,m.name
+having count(r.uid)>40
+order by avgrating desc 
+limit 10;
+
+select A.* from
+	(select 
+		sum(r.rating) sum_rating,
+		count(r.rating) cnt_rating,
+		avg(rating) avgrating,
+		r.mvid,
+		m.name,
+		rank() over (order by avg(rating) desc )  rnk
+	from ratings r left join movies m on r.mvid = m.id 
+
+	group by r.mvid ,m.name
+	having count(r.uid)>40 
+) A
+where A.rnk<=20
+
+
+from where group having select limit order
+
+
+10 -1 -  1
+10 -1 -1 
+20 -3 -2
+20 -3 -2
+20 -3 -2
+30 -6 -3
+40 -7 -4
+50 -8 -5
+50 -8 -5
+60 -10 -6
+  rank, dense_rank
 
 
 
+use hivepractice;
+create table hivepractice.q2_res as 
+select A.* from
+	(select 
+		sum(r.rating) sum_rating,
+		count(r.rating) cnt_rating,
+		avg(rating) avgrating,
+		r.mvid,
+		m.name,
+		rank() over (order by avg(rating) desc )  rnk
+	from hivepractice.ratings r left join hivepractice.movies m on r.mvid = m.id 
 
-
-
+	group by r.mvid ,m.name
+	having count(r.uid)>40 
+) A
+where A.rnk<=20;
